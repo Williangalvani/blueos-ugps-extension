@@ -36,7 +36,7 @@ LABEL company '{\
         "name": "Blue Robotics",\
         "email": "support@bluerobotics.com"\
     }'
-LABEL readme 'https://raw.githubusercontent.com/Williangalvani/blueos-ugps-extension/{tag}/README.md'
+LABEL readme 'https://raw.githubusercontent.com/Williangalvani/blueos-ugps-extension/{tag}/readme.md'
 LABEL website 'https://github.com/Williangalvani/blueos-ugps-extension/'
 LABEL support 'https://github.com/Williangalvani/blueos-ugps-extension/'
 LABEL requirements="core >= 1"
