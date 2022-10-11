@@ -1,7 +1,7 @@
-from python:3.9-slim-bullseye
+from bluerobotics/blueos-base:v0.0.7
 
 COPY app /app
-#RUN python /app/setup.py install
+RUN python /app/setup.py install
 
 EXPOSE 80/tcp
 

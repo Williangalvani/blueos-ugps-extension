@@ -5,12 +5,12 @@ import socket
 import json
 import argparse
 import requests
-from pymavlink import mavutil
 from datetime import datetime
 from os import system
 import operator
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from math import floor
+from functools import reduce
 
 STATUS_REPORT_URL = "http://127.0.0.1:2770/report_service_status"
 MAVLINK2REST_URL = "http://host.docker.internal/mavlink2rest"
@@ -77,7 +77,7 @@ def report_status(*args):
     global last_status
     if args == last_status:
         return
-    print(" ".join(args))
+    print((" ".join(args)))
     try:
         requests.post(STATUS_REPORT_URL, data={"waterlinked": " ".join(args)})
         last_status = args
@@ -87,7 +87,7 @@ def report_status(*args):
 
 def request(url):
     try:
-        return urllib2.urlopen(url, timeout=1).read()
+        return urllib.request.urlopen(url, timeout=1).read()
     except Exception as error:
         print(error)
         return None
@@ -122,6 +122,11 @@ def ensure_message_frequency(message_name, frequency):
     Returns true if successful, false otherwise
     """
     message_name = message_name.upper()
+    msg_ids = {
+        "VRF_HUD": 74,
+        "SCALED_PRESSURE2": 137
+    }
+    msg_id = msg_ids[message_name]
     try:
         current_frequency = get_message_frequency(message_name)
 
@@ -160,7 +165,7 @@ def set_param(param_name, param_type, param_value):
         result = requests.post(MAVLINK2REST_URL + '/mavlink', json=data)
         return result.status_code == 200
     except Exception as error:
-        print("error setting parameter: " + str(error))
+        print(("error setting parameter: " + str(error)))
         return False
 
 
@@ -272,7 +277,7 @@ def processLocatorPosition(response, *args, **kwargs):
     result = json.loads(response)
     if 'lat' not in result or 'lon' not in result:
         report_status('global response is not valid!')
-        print(json.dumps(result, indent=4, sort_keys=True))
+        print((json.dumps(result, indent=4, sort_keys=True)))
         return
 
     result['lat'] = result['lat'] * 1e7
