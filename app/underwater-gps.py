@@ -13,7 +13,7 @@ import urllib2
 from math import floor
 
 STATUS_REPORT_URL = "http://127.0.0.1:2770/report_service_status"
-MAVLINK2REST_URL = "http://127.0.0.1:4777"
+MAVLINK2REST_URL = "http://host.docker.internal/mavlink2rest"
 
 # holds the last status so we dont flood it
 last_status = ""
