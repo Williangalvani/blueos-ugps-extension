@@ -13,7 +13,7 @@ from math import floor
 from functools import reduce
 
 STATUS_REPORT_URL = "http://127.0.0.1:2770/report_service_status"
-MAVLINK2REST_URL = "http://host.docker.internal/mavlink2rest"
+MAVLINK2REST_URL = "http://192.168.15.20/mavlink2rest"
 
 # holds the last status so we dont flood it
 last_status = ""
@@ -74,15 +74,15 @@ def report_status(*args):
     reports the current status of this service
     """
     # Do not report the same status multiple times
-    global last_status
-    if args == last_status:
-        return
+    #global last_status
+    #if args == last_status:
+    #    return
     print((" ".join(args)))
-    try:
-        requests.post(STATUS_REPORT_URL, data={"waterlinked": " ".join(args)})
-        last_status = args
-    except:
-        print("Unable to talk to webui! Could not report status")
+    # try:
+    #     requests.post(STATUS_REPORT_URL, data={"waterlinked": " ".join(args)})
+    #     last_status = args
+    # except:
+    #     print("Unable to talk to webui! Could not report status")
 
 
 def request(url):
@@ -99,7 +99,9 @@ def get_mavlink(path):
     Example: get_mavlink('/VFR_HUD')
     Returns the data as text
     """
-    response = request(MAVLINK2REST_URL + '/mavlink' + path)
+    url = MAVLINK2REST_URL + '/mavlink/vehicles/1/components/1/messages/' + path
+    print(f"getting {url}")
+    response = request(url)
     if not response:
         report_status("Error trying to access mavlink2rest!")
         return "0.0"
@@ -110,7 +112,10 @@ def get_message_frequency(message_name):
     """
     Returns the frequency at which message "message_name" is being received, 0 if unavailable
     """
-    return float(get_mavlink('/{0}/message_information/frequency'.format(message_name)))
+    try:
+        return float(get_mavlink('{0}/status/time/frequency'.format(message_name)))
+    except:
+        return 0
 
 
 
@@ -121,21 +126,25 @@ def ensure_message_frequency(message_name, frequency):
     Makes sure that a mavlink message is being received at least at "frequency" Hertz
     Returns true if successful, false otherwise
     """
+    print(f"ensuring we get {message_name} at {frequency} Hz")
     message_name = message_name.upper()
     msg_ids = {
-        "VRF_HUD": 74,
+        "VFR_HUD": 74,
         "SCALED_PRESSURE2": 137
     }
     msg_id = msg_ids[message_name]
+    url = MAVLINK2REST_URL + '/helper/mavlink?name=COMMAND_LONG'
     try:
         current_frequency = get_message_frequency(message_name)
+        print(f"frequency for {message_name} is {current_frequency}")
 
         # load message template from mavlink2rest helper
-        data = json.loads(requests.get(MAVLINK2REST_URL + '/helper/message/COMMAND_LONG').text)
-    except:
+        data = json.loads(requests.get(url).text)
+    except Exception as e:
+        print(f"failed to get helper template from {url}")
+        print(e)
         return False
 
-    msg_id = getattr(mavutil.mavlink, 'MAVLINK_MSG_ID_' + message_name)
     data["message"]["command"] = {"type": 'MAV_CMD_SET_MESSAGE_INTERVAL'}
     data["message"]["param1"] = msg_id
     data["message"]["param2"] = int(1000/frequency)
@@ -154,7 +163,7 @@ def set_param(param_name, param_type, param_value):
     Returns True if succesful, False otherwise
     """
     try:
-        data = json.loads(requests.get(MAVLINK2REST_URL + '/helper/message/PARAM_SET').text)
+        data = json.loads(requests.get(MAVLINK2REST_URL + '/helper/mavlink?name=PARAM_SET').text)
 
         for i, char in enumerate(param_name):
             data["message"]["param_id"][i] = char
@@ -170,15 +179,15 @@ def set_param(param_name, param_type, param_value):
 
 
 def get_depth():
-    return -float(get_mavlink('/VFR_HUD/alt'))
+    return -float(get_mavlink('VFR_HUD/message/alt'))
 
 
 def get_orientation():
-    return float(get_mavlink('/VFR_HUD/heading'))
+    return float(get_mavlink('VFR_HUD/message/heading'))
 
 
 def get_temperature():
-    return float(get_mavlink('/SCALED_PRESSURE2/temperature'))/100.0
+    return float(get_mavlink('SCALED_PRESSURE2/message/temperature'))/100.0
 
 
 def calculateNmeaChecksum(string):
@@ -186,7 +195,7 @@ def calculateNmeaChecksum(string):
     Calculates the checksum of an Nmea string
     """
     data, checksum = string.split("*")
-    calculated_checksum = reduce(operator.xor, bytearray(data[1:]), 0)
+    calculated_checksum = reduce(operator.xor, bytearray(data[1:], 'utf-8'), 0)
     return calculated_checksum
 
 
@@ -263,7 +272,7 @@ def processMasterPosition(response, *args, **kwargs):
                 float(result['lon']),
                 orientation=result['orientation']
                 )
-            qgc_nmea_socket.sendto(msg, ('192.168.2.1', 14401))
+            qgc_nmea_socket.sendto(msg.encode('utf-8'), ('192.168.2.1', 14401))
     except Exception as error:
         report_status("Error reading master position: " + error)
 
@@ -280,15 +289,23 @@ def processLocatorPosition(response, *args, **kwargs):
         print((json.dumps(result, indent=4, sort_keys=True)))
         return
 
-    result['lat'] = result['lat'] * 1e7
-    result['lon'] = result['lon'] * 1e7
-    result['fix_type'] = 3
-    result['hdop'] = 1.0
-    result['vdop'] = 1.0
-    result['satellites_visible'] = 10
-    result['ignore_flags'] = 8 | 16 | 32
-    result = json.dumps(result)
-    socket_mavproxy.sendto(result, ('0.0.0.0', 25100))
+    data = json.loads(requests.get(MAVLINK2REST_URL + '/helper/mavlink?name=GPS_INPUT').text)
+
+    data["message"]['lat'] = result['lat'] * 1e7
+    data["message"]['lon'] = result['lon'] * 1e7
+    data["message"]['fix_type'] = 3
+    data["message"]['hdop'] = 1.0
+    data["message"]['vdop'] = 1.0
+    data["message"]['satellites_visible'] = 10
+    data["message"]['ignore_flags'] = 8 | 16 | 32
+
+    try:
+        result = requests.post(MAVLINK2REST_URL + '/mavlink', json=data)
+        return result.status_code == 200
+    except Exception as error:
+        print("error sending GPS_INPUT")
+        print(error)
+        return False
 
 
 # Socket to send GPS data to mavproxy
@@ -297,6 +314,7 @@ socket_mavproxy.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 socket_mavproxy.setblocking(0)
 
 if __name__ == "__main__":
+    print("starting")
     parser = argparse.ArgumentParser(description="Driver for the Water Linked Underwater GPS system.")
     parser.add_argument('--ip', action="store", type=str, default="demo.waterlinked.com", help="remote ip to query on.")
     parser.add_argument('--port', action="store", type=str, default="80", help="remote port to query on.")
@@ -334,6 +352,7 @@ if __name__ == "__main__":
     # TODO: upgrade this to async once we have Python >= 3.6
     while True:
         time.sleep(0.02)
+        print(".")
         if time.time() > last_locator_update + update_period:
             last_locator_update = time.time()
 
