@@ -291,8 +291,8 @@ def processLocatorPosition(response, *args, **kwargs):
 
     data = json.loads(requests.get(MAVLINK2REST_URL + '/helper/mavlink?name=GPS_INPUT').text)
 
-    data["message"]['lat'] = result['lat'] * 1e7
-    data["message"]['lon'] = result['lon'] * 1e7
+    data["message"]['lat'] = floor(result['lat'] * 1e7)
+    data["message"]['lon'] = floor(result['lon'] * 1e7)
     data["message"]['fix_type'] = 3
     data["message"]['hdop'] = 1.0
     data["message"]['vdop'] = 1.0
