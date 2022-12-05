@@ -252,7 +252,7 @@ def wait_for_waterlinked():
         time.sleep(5)
 
 
-def processMasterPosition(response, *args, **kwargs):
+def processMasterPosition(response, topside, *args, **kwargs):
     """
     Callback to handle the Master position request. This sends the topside position and orientation
     to QGroundControl via UDP port 14401
@@ -272,7 +272,7 @@ def processMasterPosition(response, *args, **kwargs):
                 float(result['lon']),
                 orientation=result['orientation']
                 )
-            qgc_nmea_socket.sendto(msg.encode('utf-8'), ('192.168.2.1', 14401))
+            qgc_nmea_socket.sendto(msg.encode('utf-8'), (topside, 14401))
     except Exception as error:
         report_status("Error reading master position: " + error)
 
@@ -318,6 +318,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Driver for the Water Linked Underwater GPS system.")
     parser.add_argument('--ip', action="store", type=str, default="demo.waterlinked.com", help="remote ip to query on.")
     parser.add_argument('--port', action="store", type=str, default="80", help="remote port to query on.")
+    parser.add_argument('--topside', action="store", type=str, default="192.168.2.1", help="remote port to query on.")
     args = parser.parse_args()
 
     # Use UDP port 14401 to send NMEA data to QGC for topside location
@@ -367,7 +368,7 @@ if __name__ == "__main__":
 
             response = request(master_endpoint)
             if response:
-                processMasterPosition(response)
+                processMasterPosition(response, args.topside)
             else:
                 report_status("Unable to fetch Master position from Waterlinked API")
 
