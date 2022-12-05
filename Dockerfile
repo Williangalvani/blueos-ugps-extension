@@ -12,6 +12,10 @@ LABEL permissions '\
   "ExposedPorts": {\
     "80/tcp": {}\
   },\
+  "Env": [\
+    "UGPS_IP=192.168.2.94",\
+    "TOPSIDE_IP=192.168.2.94"\
+    ],\
   "HostConfig": {\
     "Binds":["/root/.config:/root/.config"],\
     "ExtraHosts": ["host.docker.internal:host-gateway"],\
@@ -41,4 +45,4 @@ LABEL website 'https://github.com/Williangalvani/blueos-ugps-extension/'
 LABEL support 'https://github.com/Williangalvani/blueos-ugps-extension/'
 LABEL requirements="core >= 1"
 
-ENTRYPOINT cd /app && python underwater-gps.py
+ENTRYPOINT cd /app && python underwater-gps.py --ip $UGPS_IP --topside $TOPSIDE_IP
