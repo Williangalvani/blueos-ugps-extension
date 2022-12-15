@@ -14,7 +14,7 @@ LABEL permissions '\
   },\
   "Env": [\
     "UGPS_IP=192.168.2.94",\
-    "TOPSIDE_IP=192.168.2.94"\
+    "TOPSIDE_IP=192.168.2.1"\
     ],\
   "HostConfig": {\
     "Binds":["/root/.config:/root/.config"],\
